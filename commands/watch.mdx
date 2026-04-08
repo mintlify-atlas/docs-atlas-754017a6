@@ -1,0 +1,69 @@
+---
+title: "ports watch"
+description: "Monitor port changes in real time — get notified the moment a server starts or stops listening."
+keywords: ["watch", "real-time", "monitor", "ports", "live", "polling"]
+---
+
+`ports watch` starts a real-time port monitor. It polls every 2 seconds and prints a timestamped event line whenever a port starts or stops listening.
+
+## Usage
+
+```bash
+ports watch
+```
+
+Press `Ctrl+C` to stop watching.
+
+## Example output
+
+```
+  Watching for port changes... (Ctrl+C to stop)
+
+  10:42:01  ▲ NEW    :3000  node       frontend    Next.js
+  10:42:03  ▲ NEW    :5173  node       my-app      Vite
+  10:44:17  ▼ CLOSED :3000  node       frontend    Next.js
+```
+
+Each line contains:
+
+| Field | Description |
+|-------|-------------|
+| Timestamp | The local time when the event was detected |
+| `▲ NEW` | A port started listening |
+| `▼ CLOSED` | A port stopped listening |
+| Port number | The TCP port that changed state |
+| Process | The executable name of the process (for `NEW` events) |
+| Project | The detected project name (for `NEW` events) |
+| Framework | The detected framework (for `NEW` events) |
+
+<Note>
+`CLOSED` events only report the port number. Process and project information is no longer available once a port stops listening.
+</Note>
+
+## How it works
+
+`ports watch` calls `getListeningPorts()` on an interval of 2 seconds and compares the result against the previous snapshot:
+
+- **`▲ NEW`** — a port appears in the current snapshot that was not in the previous one. Port Whisperer emits a `new` event with the full process info.
+- **`▼ CLOSED`** — a port that was in the previous snapshot is no longer present. Port Whisperer emits a `removed` event with just the port number.
+
+The first poll runs immediately on startup to capture the current state. Subsequent polls run every 2 seconds. If a poll is still running when the next interval fires, the interval tick is skipped to avoid overlapping calls.
+
+## Stopping the watcher
+
+Press `Ctrl+C` at any time. Port Whisperer handles `SIGINT` gracefully, clears the polling interval, and prints:
+
+```
+  Stopped watching.
+```
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="ports" icon="list" href="/commands/ports">
+    One-shot port listing
+  </Card>
+  <Card title="Inspect a port" icon="magnifying-glass" href="/commands/inspect">
+    Deep-dive into any specific port
+  </Card>
+</CardGroup>

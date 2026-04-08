@@ -1,0 +1,68 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Port Whisperer",
+  "projectDescription": "A beautiful CLI tool that shows what's running on your ports, with framework detection, process info, and interactive process management.",
+  "theme": "palm",
+  "primaryColor": "#dc7454",
+  "lightColor": "#e4a48c",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation", "quickstart"]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "commands/ports",
+              "commands/inspect",
+              "commands/kill",
+              "commands/ps",
+              "commands/clean",
+              "commands/watch"
+            ]
+          },
+          {
+            "group": "How It Works",
+            "pages": [
+              "how-it-works/architecture",
+              "how-it-works/framework-detection",
+              "how-it-works/platform-support"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/docker",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Color-coded port table with framework detection (Next.js, Vite, Django, Rails, and 20+ more)",
+    "Docker container identification — maps host ports to container names and images",
+    "Interactive process management — kill by port or PID with SIGTERM/SIGKILL",
+    "Process health status: healthy, orphaned, and zombie detection",
+    "Real-time port watching with change notifications",
+    "Developer process listing (ports ps) with CPU%, memory, and uptime",
+    "Orphaned/zombie cleanup with confirmation prompt",
+    "Fast execution (~0.2s) via three batched shell calls"
+  ],
+  "publicApiSurface": [
+    "ports — list active dev server ports",
+    "ports --all — list all listening ports including system services",
+    "ports <number> — inspect a specific port with interactive kill prompt",
+    "ports kill <port|pid> [-f] — kill process by port or PID",
+    "ports ps [--all] — list all running dev processes",
+    "ports clean — find and kill orphaned/zombie dev servers",
+    "ports watch — real-time port change monitoring",
+    "whoisonport <number> — alias for ports <number>"
+  ]
+}

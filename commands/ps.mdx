@@ -1,0 +1,98 @@
+---
+title: "ports ps"
+description: "List all running dev processes — not just port-bound ones — with CPU, memory, framework detection, and a smart description column."
+keywords: ["ps", "processes", "cpu", "memory", "docker", "dev", "framework"]
+---
+
+`ports ps` is a developer-focused `ps aux`. It shows all running dev processes on your machine — whether or not they're listening on a port — sorted by CPU usage, with framework detection and a `WHAT` column that summarizes what each process is doing.
+
+## Usage
+
+```bash
+ports ps           # dev processes only (default)
+ports ps --all     # all processes, not just dev
+ports ps -a        # alias for --all
+```
+
+## Example output
+
+```
+┌───────┬─────────┬──────┬──────────┬──────────┬───────────┬─────────┬────────────────────────────────┐
+│ PID   │ PROCESS │ CPU% │ MEM      │ PROJECT  │ FRAMEWORK │ UPTIME  │ WHAT                           │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼────────────────────────────────┤
+│ 592   │ Docker  │ 1.3  │ 735.5 MB │ —        │ Docker    │ 13d 12h │ 14 processes                   │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼────────────────────────────────┤
+│ 36664 │ python3 │ 0.2  │ 17.6 MB  │ —        │ Python    │ 6d 10h  │ browser_use.skill_cli.daemon   │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼────────────────────────────────┤
+│ 26408 │ node    │ 0.1  │ 9.2 MB   │ —        │ Node.js   │ 10d 13h │ jest jest_runner_cloud.js      │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼────────────────────────────────┤
+│ 25752 │ node    │ 0.0  │ 17.3 MB  │ —        │ Node.js   │ 10d 13h │ server.js                      │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼────────────────────────────────┤
+│ 66921 │ Python  │ 0.0  │ 4.1 MB   │ —        │ Python    │ 2h 25m  │ src.server                     │
+└───────┴─────────┴──────┴──────────┴──────────┴───────────┴─────────┴────────────────────────────────┘
+
+  5 processes  ·  --all to show everything
+```
+
+## Column reference
+
+| Column | Description |
+|--------|-------------|
+| `PID` | Operating system process ID |
+| `PROCESS` | The executable name |
+| `CPU%` | Current CPU usage percentage |
+| `MEM` | Resident set size (RSS) of the process |
+| `PROJECT` | Detected project directory name, if resolvable from the process's working directory |
+| `FRAMEWORK` | Detected framework (Node.js, Python, Docker, etc.) |
+| `UPTIME` | Time elapsed since the process started |
+| `WHAT` | A short summary derived from the process command line — flags are stripped, and meaningful arguments and file names are surfaced |
+
+## CPU% color coding
+
+The `CPU%` column is color-coded based on usage:
+
+| Range | Color | Meaning |
+|-------|-------|---------|
+| < 5% | Green | Low CPU usage |
+| 5–25% | Yellow | Moderate CPU usage |
+| > 25% | Red | High CPU usage |
+
+## Docker process collapsing
+
+In the default (dev-only) view, all Docker-related processes — including `com.docker.*`, `Docker`, `docker`, and `docker-sandbox` — are collapsed into a single summary row. The summary row shows:
+
+- The PID of the first Docker process found
+- Total combined CPU across all Docker processes
+- Total combined memory across all Docker processes
+- The count of Docker processes in the `WHAT` column (e.g. `14 processes`)
+
+<Note>
+Running `ports ps --all` disables Docker collapsing and shows every Docker process individually.
+</Note>
+
+## The WHAT column
+
+The `WHAT` column is derived from the process's full command line. Port Whisperer strips the executable itself and any flags (arguments starting with `-`), then takes up to three meaningful tokens. Path components are reduced to their base name.
+
+For example, a process running `/usr/local/bin/node /home/alice/projects/api/server.js` produces `WHAT = server.js`.
+
+## Flags
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--all` | `-a` | Show all processes, not just those matching dev runtime names. Docker processes are not collapsed in this mode. |
+
+## Sorting
+
+Results are sorted by CPU% in descending order, so the most active processes appear at the top.
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="ports" icon="list" href="/commands/ports">
+    Show port-bound processes only
+  </Card>
+  <Card title="ports clean" icon="broom" href="/commands/clean">
+    Kill orphaned and zombie processes
+  </Card>
+</CardGroup>

@@ -1,0 +1,113 @@
+---
+title: "Platform support"
+description: "Operating system support and platform-specific behavior"
+---
+
+## Supported platforms
+
+| Platform | Status |
+|----------|--------|
+| macOS | Supported |
+| Linux | Planned |
+| Windows | Not planned |
+
+## macOS
+
+macOS is the primary supported platform. All features are available and tested here.
+
+Port discovery uses `lsof` with TCP filtering flags:
+
+```bash
+lsof -iTCP -sTCP:LISTEN -P -n
+```
+
+`-P` disables port-to-service-name conversion (so you see `3000` not `hbci`) and `-n` skips hostname resolution, keeping the call fast.
+
+Process details are fetched in a single batched `ps` call:
+
+```bash
+ps -p <pid1>,<pid2>,... -o pid=,ppid=,stat=,rss=,lstart=,command=
+```
+
+Working directories are resolved in a single batched `lsof` call:
+
+```bash
+lsof -a -d cwd -p <pid1>,<pid2>,...
+```
+
+The process tree (shown in detail view) is built by reading `ps -eo pid=,ppid=,comm=` once and walking parent PIDs in memory up to 8 levels deep.
+
+## Linux
+
+<Note>
+  Linux support is planned. The module exists at `src/platform/linux.js` and implements the full platform interface, but it has not been formally tested or released.
+</Note>
+
+The Linux implementation uses different underlying commands to work around the absence of `lsof -iTCP` on many distributions:
+
+- **Port discovery**: `ss -tlnp` (preferred), with `netstat -tlnp` as a fallback if `ss` is not available.
+- **Process details**: `ps -p <pids> -o pid=,ppid=,stat=,rss=,lstart=,command=` — the same interface as macOS, with `/proc/<pid>/stat` and `/proc/<pid>/statm` used to fill in any gaps for processes that `ps` can't resolve.
+- **Working directories**: Read directly from `/proc/<pid>/cwd` symlinks — no `lsof` required.
+- **Process tree**: Built by scanning all entries under `/proc/` and walking parent PIDs.
+
+## Windows
+
+<Warning>
+  Windows is not planned as a supported platform. Port Whisperer relies on `lsof`, `ps`, and `ss` — Unix utilities that are not natively available on Windows.
+</Warning>
+
+One Windows-specific path does exist in the codebase: when `process.platform === "win32"` and a force-kill (`SIGKILL`) is requested, Port Whisperer falls back to `taskkill /F /PID <pid>` instead of sending a Unix signal. This covers the case where Port Whisperer is run inside WSL or a Node.js environment on Windows, but full functionality is not supported or tested.
+
+## Platform abstraction layer
+
+The platform-specific code lives in `src/platform/` and is isolated behind a thin abstraction in `src/platform/index.js`.
+
+```
+src/platform/
+├── index.js     # Lazy-loads the correct OS module
+├── darwin.js    # macOS implementation
+├── linux.js     # Linux implementation (planned)
+└── win32.js     # Windows stubs
+```
+
+`getPlatform()` in `index.js` reads `process.platform` at runtime and dynamically imports the matching module. The promise is cached so the import only happens once per process:
+
+```javascript
+export function getPlatform() {
+  if (!_platformPromise) {
+    const name = process.platform;
+    if (name === "darwin") {
+      _platformPromise = import("./darwin.js");
+    } else if (name === "linux") {
+      _platformPromise = import("./linux.js");
+    } else if (name === "win32") {
+      _platformPromise = import("./win32.js");
+    } else {
+      _platformPromise = Promise.reject(
+        new Error(`Unsupported platform: ${name}`)
+      );
+    }
+  }
+  return _platformPromise;
+}
+```
+
+Each platform module exports the same interface:
+
+| Export | Description |
+|--------|-------------|
+| `getListeningPortsRaw()` | Returns `{ port, pid, processName }[]` for all TCP listeners |
+| `batchProcessInfo(pids)` | Returns a `Map<pid, { ppid, stat, rss, lstart, command }>` |
+| `batchCwd(pids)` | Returns a `Map<pid, string>` of working directory paths |
+| `getAllProcessesRaw()` | Returns all running processes for `ports ps` |
+| `getProcessTree(pid)` | Returns ancestor chain up to 8 levels deep |
+
+## Docker
+
+Docker support works on any platform that has the Docker CLI installed. Port Whisperer calls:
+
+```bash
+docker ps --format "{{.Ports}}\t{{.Names}}\t{{.Image}}"
+```
+
+This is a single cross-platform call via the Docker CLI — it does not use `lsof` or any Unix-specific tools. Port Whisperer only makes this call when it detects at least one process named `com.docker.*` or `docker` in the listener list.

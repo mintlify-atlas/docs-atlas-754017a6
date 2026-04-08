@@ -1,0 +1,113 @@
+---
+title: "ports"
+description: "List all listening ports on your machine, filtered to dev servers by default."
+keywords: ["ports", "list", "listening", "dev server", "all", "status"]
+---
+
+Running `ports` with no arguments scans all TCP listening ports and displays a color-coded table of dev servers, databases, and Docker containers. System apps are filtered out by default.
+
+## Usage
+
+```bash
+ports           # dev servers only (default)
+ports --all     # all listening ports, including system services
+ports -a        # alias for --all
+```
+
+## Output table
+
+```
+ ┌─────────────────────────────────────┐
+ │  Port Whisperer                     │
+ │  listening to your ports...         │
+ └─────────────────────────────────────┘
+
+┌───────┬─────────┬───────┬──────────────────────┬────────────┬────────┬───────────┐
+│ PORT  │ PROCESS │ PID   │ PROJECT              │ FRAMEWORK  │ UPTIME │ STATUS    │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :3000 │ node    │ 42872 │ frontend             │ Next.js    │ 1d 9h  │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :3001 │ node    │ 95380 │ preview-app          │ Next.js    │ 2h 40m │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :4566 │ docker  │ 58351 │ backend-localstack-1 │ LocalStack │ 10d 3h │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :5432 │ docker  │ 58351 │ backend-postgres-1   │ PostgreSQL │ 10d 3h │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :6379 │ docker  │ 58351 │ backend-redis-1      │ Redis      │ 10d 3h │ ● healthy │
+└───────┴─────────┴───────┴──────────────────────┴────────────┴────────┴───────────┘
+
+  5 ports active  ·  Run ports <number> for details  ·  --all to show everything
+```
+
+### Column reference
+
+| Column | Description |
+|--------|-------------|
+| `PORT` | The TCP port number the process is listening on, prefixed with `:` |
+| `PROCESS` | The process executable name (e.g. `node`, `python3`, `docker`) |
+| `PID` | The operating system process ID |
+| `PROJECT` | The project directory name, or Docker container name for Docker ports |
+| `FRAMEWORK` | Detected framework (Next.js, Vite, Django, Redis, etc.) |
+| `UPTIME` | How long the process has been running, derived from its start time |
+| `STATUS` | Health indicator: `healthy`, `orphaned`, or `zombie` |
+
+### Status colors
+
+<Note>
+Status is determined from the process's OS state, not from an HTTP health check.
+</Note>
+
+| Status | Color | Meaning |
+|--------|-------|---------|
+| `● healthy` | Green | Process is running normally with a live parent |
+| `● orphaned` | Yellow | Dev process whose parent is PID 1 (reparented after its original parent exited) |
+| `● zombie` | Red | Process has exited but hasn't been reaped — its stat includes `Z` |
+
+## Dev process filtering
+
+By default, `ports` only shows processes that look like dev servers. A process is considered a dev process if any of the following are true:
+
+- Its name exactly matches a known runtime: `node`, `python`, `python3`, `ruby`, `java`, `go`, `cargo`, `deno`, `bun`, `php`, `uvicorn`, `gunicorn`, `flask`, `rails`, `npm`, `npx`, `yarn`, `pnpm`, `tsc`, `tsx`, `esbuild`, `rollup`, `turbo`, `nx`, `jest`, `vitest`, `mocha`, `pytest`, `cypress`, `playwright`, `rustc`, `dotnet`, `gradle`, `mvn`, `mix`, or `elixir`
+- Its name starts with `com.docke`, or it is `docker` or `docker-sandbox`
+- Its command line contains keywords like `next`, `vite`, `nuxt`, `webpack`, `remix`, `astro`, `flask`, `django`, `uvicorn`, or `rails`
+
+The following apps are always excluded, regardless of whether they happen to be listening on a port:
+
+<AccordionGroup>
+  <Accordion title="macOS apps filtered out by default">
+    Spotify, Raycast, TablePlus, Postman, Linear, Cursor, Slack, Discord, Firefox, Chrome, Safari, Figma, Notion, Zoom, Teams, VS Code, iTerm2, Warp, Arc, and internal macOS services such as `loginwindow`, `WindowServer`, `coreaudio`, `bluetoothd`, `airportd`, `sharingd`, and others.
+  </Accordion>
+  <Accordion title="Linux system processes filtered out by default">
+    `systemd`, `snapd`, `NetworkManager`, `gdm`, `sshd`, `cron`, `dbus-daemon`, `polkitd`, `rsyslogd`, `thermald`, `accounts-daemon`
+  </Accordion>
+  <Accordion title="Windows system processes filtered out by default">
+    `svchost`, `csrss`, `lsass`, `services`, `explorer`, `dwm`, `SearchIndexer`, `taskhostw`, `RuntimeBroker`, `ShellExperienceHost`
+  </Accordion>
+</AccordionGroup>
+
+## Flags
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--all` | `-a` | Show all listening ports, including system services and desktop apps |
+
+<Tip>
+Run `ports --all` to see everything that is listening on your machine — useful for diagnosing unexpected port conflicts with system services.
+</Tip>
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="Inspect a port" icon="magnifying-glass" href="/commands/inspect">
+    Get full details on any specific port
+  </Card>
+  <Card title="Kill a process" icon="x" href="/commands/kill">
+    Kill by port number or PID
+  </Card>
+  <Card title="Process list" icon="rectangle-list" href="/commands/ps">
+    View all running dev processes, not just port-bound ones
+  </Card>
+  <Card title="Watch for changes" icon="eye" href="/commands/watch">
+    Monitor ports in real time
+  </Card>
+</CardGroup>

@@ -1,0 +1,65 @@
+---
+title: "Installation"
+description: "Install Port Whisperer globally or run it instantly without installing."
+---
+
+Port Whisperer is published to npm. Install it once globally to use the `ports` and `whoisonport` commands anywhere on your system.
+
+## Global install
+
+<CodeGroup>
+
+```bash npm
+npm install -g port-whisperer
+```
+
+```bash yarn
+yarn global add port-whisperer
+```
+
+```bash pnpm
+pnpm add -g port-whisperer
+```
+
+</CodeGroup>
+
+After installing, run `ports` from any directory:
+
+```bash
+ports
+```
+
+## Run without installing
+
+Use `npx` to run Port Whisperer instantly without a global install:
+
+```bash
+npx port-whisperer
+```
+
+<Note>
+`npx` downloads and caches the package on first run. Subsequent runs use the cached version.
+</Note>
+
+## Requirements
+
+- **Node.js** 18 or higher
+- **macOS** (Linux support planned; Windows not planned)
+- `lsof` must be available (included by default on macOS)
+
+## Verify the install
+
+```bash
+ports --help
+```
+
+You should see the full command reference printed to your terminal.
+
+## Binary names
+
+Port Whisperer installs two binary aliases:
+
+| Command | Description |
+|---|---|
+| `ports` | Main entry point for all commands |
+| `whoisonport` | Alias for `ports <number>` — inspect a specific port |

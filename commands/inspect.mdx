@@ -1,0 +1,127 @@
+---
+title: "Inspect a port"
+description: "Get detailed process information for any port — including memory, git branch, process tree, and an interactive kill prompt."
+keywords: ["inspect", "port", "details", "whoisonport", "process tree", "kill", "pid"]
+---
+
+Pass a port number directly to `ports` to inspect the process listening on that port. You get a full detail view: process info, project location, git branch, memory usage, uptime, and a process tree. At the end, you're offered an interactive prompt to kill the process.
+
+## Usage
+
+```bash
+ports 3000
+# or
+whoisonport 3000
+```
+
+`whoisonport` is a global alias for `ports <number>` — both commands behave identically.
+
+<Note>
+If nothing is listening on the specified port, Port Whisperer prints "No process found on that port." and exits.
+</Note>
+
+## Detail view
+
+Running `ports 3000` produces a detail view similar to:
+
+```
+  ┌─────────────────────────────────────┐
+  │  :3000                              │
+  └─────────────────────────────────────┘
+
+  Process    node
+  PID        42872
+  Status     ● healthy
+  Framework  Next.js
+  Memory     184.3 MB
+  Uptime     1d 9h
+  Started    Mon Apr 07 2026 08:14:22
+
+  Location
+  ─────────────────────────────────────
+  Directory  /Users/alice/projects/frontend
+  Project    frontend
+  Git branch main
+
+  Process Tree
+  ─────────────────────────────────────
+  1 (launchd)
+  └─ 42800 (bash)
+     └─ 42872 (node)  ← you are here
+
+  Kill process on :3000? [y/N]
+```
+
+### Fields explained
+
+| Field | Description |
+|-------|-------------|
+| `Process` | The executable name of the process listening on this port |
+| `PID` | Operating system process ID |
+| `Status` | `healthy`, `orphaned`, or `zombie` — see [status colors](/commands/ports#status-colors) |
+| `Framework` | Detected framework, derived from command line and `package.json` dependencies |
+| `Memory` | Resident set size (RSS) of the process |
+| `Uptime` | Time elapsed since the process started |
+| `Started` | Absolute start timestamp |
+
+### Location section
+
+| Field | Description |
+|-------|-------------|
+| `Directory` | The working directory of the process, resolved to the nearest project root (identified by `package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `Gemfile`, `pom.xml`, or `build.gradle`) |
+| `Project` | The base directory name of the resolved project root |
+| `Git branch` | The current branch of the git repository at that directory, if one exists |
+
+<Note>
+The `Directory` and `Git branch` fields only appear when Port Whisperer can resolve the process's working directory. Docker-managed processes do not show a location section.
+</Note>
+
+### Process tree section
+
+The process tree shows the ancestry chain from PID 1 down to the process listening on the port. This is useful for understanding which shell session, terminal multiplexer, or parent process launched the server.
+
+## Interactive kill prompt
+
+After displaying the detail view, Port Whisperer asks:
+
+```
+  Kill process on :3000? [y/N]
+```
+
+- Type `y` and press Enter to send `SIGTERM` to the process.
+- Press Enter (or type anything other than `y`) to exit without killing.
+
+If the kill succeeds:
+
+```
+  ✓ Killed PID 42872
+```
+
+If the kill fails (for example, due to insufficient permissions):
+
+```
+  ✕ Failed. Try: sudo kill -9 42872
+```
+
+<Warning>
+The interactive prompt sends `SIGTERM`. For processes that ignore `SIGTERM`, use [`ports kill -f`](/commands/kill) to send `SIGKILL` instead.
+</Warning>
+
+## The `whoisonport` alias
+
+`whoisonport` is a convenience alias installed alongside `ports`. It takes a single port number and produces the same detail view as `ports <number>`.
+
+```bash
+whoisonport 8080
+```
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="ports" icon="list" href="/commands/ports">
+    List all dev server ports
+  </Card>
+  <Card title="ports kill" icon="x" href="/commands/kill">
+    Kill by port or PID without an interactive prompt
+  </Card>
+</CardGroup>

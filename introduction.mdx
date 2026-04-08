@@ -1,0 +1,65 @@
+---
+title: "Port Whisperer"
+description: "A beautiful CLI tool to see what's running on your ports — with framework detection, process info, and interactive management."
+---
+
+Stop guessing which process is hogging port 3000. Port Whisperer gives you a color-coded table of every dev server, database, and background process listening on your machine — with framework detection, Docker container identification, and interactive process management.
+
+```
+$ ports
+
+ ┌─────────────────────────────────────┐
+ │  🔊 Port Whisperer                  │
+ │  listening to your ports...         │
+ └─────────────────────────────────────┘
+
+┌───────┬─────────┬───────┬──────────────────────┬────────────┬────────┬───────────┐
+│ PORT  │ PROCESS │ PID   │ PROJECT              │ FRAMEWORK  │ UPTIME │ STATUS    │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :3000 │ node    │ 42872 │ frontend             │ Next.js    │ 1d 9h  │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :4566 │ docker  │ 58351 │ backend-localstack-1 │ LocalStack │ 10d 3h │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :5432 │ docker  │ 58351 │ backend-postgres-1   │ PostgreSQL │ 10d 3h │ ● healthy │
+└───────┴─────────┴───────┴──────────────────────┴────────────┴────────┴───────────┘
+
+  3 ports active  ·  Run ports <number> for details  ·  --all to show everything
+```
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via npm or run instantly with npx — no setup required
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get running in under a minute
+  </Card>
+  <Card title="Command Reference" icon="terminal" href="/commands/ports">
+    Full reference for every command and flag
+  </Card>
+  <Card title="How It Works" icon="gear" href="/how-it-works/architecture">
+    Understand the architecture and framework detection
+  </Card>
+</CardGroup>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Framework detection" icon="magnifying-glass">
+    Identifies Next.js, Vite, Django, Rails, FastAPI, and 20+ more frameworks automatically
+  </Card>
+  <Card title="Docker support" icon="docker">
+    Maps Docker host ports to container names and images (PostgreSQL, Redis, MongoDB, and more)
+  </Card>
+  <Card title="Process health" icon="heart-pulse">
+    Color-coded status: green for healthy, yellow for orphaned, red for zombie processes
+  </Card>
+  <Card title="Interactive management" icon="hand-pointer">
+    Kill processes by port or PID with a single command or interactive prompt
+  </Card>
+  <Card title="Real-time watching" icon="eye">
+    Monitor port changes live — get notified when servers start or stop
+  </Card>
+  <Card title="Fast by design" icon="bolt">
+    Runs in ~0.2s via three batched shell calls — no polling overhead
+  </Card>
+</CardGroup>

@@ -1,0 +1,156 @@
+---
+title: "Troubleshooting"
+description: "Common issues and how to fix them."
+---
+
+<AccordionGroup>
+
+<Accordion title='"No active listening ports found"'>
+
+This means `ports` found listening TCP ports but none of them passed the dev-process filter.
+
+- You may have no dev servers currently running
+- Try `ports --all` to see every listening port on your machine, including system services
+- Verify a server is running independently with:
+
+```bash
+lsof -iTCP -sTCP:LISTEN
+```
+
+<Tip>
+If your server appears in `lsof` output but not in `ports`, it's likely being filtered out as a system or desktop app. See "Port is not showing up" below.
+</Tip>
+
+</Accordion>
+
+<Accordion title='A port shows as "orphaned"'>
+
+A port is marked **orphaned** when its process has a parent PID of `1` and is recognized as a dev process. This means the process was detached from its original shell session — its parent (your terminal) exited, and the process was re-parented to PID 1 (`launchd` / `init`).
+
+This typically happens when:
+- A dev server kept running after its terminal window was closed
+- A process was started in a terminal that was then force-quit
+
+To clean up orphaned processes:
+
+```bash
+ports clean        # interactive: shows what will be killed, asks to confirm
+ports kill <port>  # kill a specific orphaned port directly
+```
+
+</Accordion>
+
+<Accordion title='A port shows as "zombie"'>
+
+A port is marked **zombie** when the process's stat field contains `"Z"`. The process has already exited, but its parent hasn't called `wait()` to collect its exit status, so the OS keeps a PID entry for it.
+
+Zombie processes hold **no system resources** except a PID slot — they cannot be meaningfully interacted with.
+
+To remove zombie dev processes:
+
+```bash
+ports clean
+```
+
+<Note>
+`ports clean` sends `SIGTERM` to zombie entries. If a zombie persists after this, the underlying fix is to kill or restart the parent process, which will cause the OS to clean up the zombie automatically.
+</Note>
+
+</Accordion>
+
+<Accordion title='A port is not showing up'>
+
+By default, `ports` filters out system apps and desktop apps. A port is hidden if its process name matches a known non-dev app (Spotify, Raycast, Chrome, Slack, Discord, system daemons, etc.).
+
+- Use `ports --all` to show every listening port with no filtering
+- If a process is not recognized as a dev runtime, it won't appear in the default view even if it's actively listening
+
+The full list of filtered names includes macOS system processes (`loginwindow`, `WindowServer`, `launchd`, etc.), common desktop apps, and Linux/Windows system daemons.
+
+</Accordion>
+
+<Accordion title='"Failed. Try: sudo kill -9 <pid>"'>
+
+This message appears when `killProcess()` returns `false` after sending `SIGTERM` to the process.
+
+**Step 1 — try a force kill:**
+
+```bash
+ports kill -f <port>   # sends SIGKILL instead of SIGTERM
+```
+
+**Step 2 — escalate with sudo if needed:**
+
+```bash
+sudo kill -9 <pid>
+```
+
+<Warning>
+Some processes are owned by a different user or a system user and cannot be killed without elevated permissions. This is uncommon on standard developer machines but can occur with processes started via `sudo` or by a service manager.
+</Warning>
+
+</Accordion>
+
+<Accordion title='Framework shows as "Node.js" instead of the actual framework'>
+
+Port Whisperer determines the framework by reading `package.json` dependencies from the project root. If the project root can't be found, it falls back to identifying the runtime by process name — so a `node` process becomes "Node.js".
+
+This can happen when:
+- The process's working directory couldn't be resolved via `lsof -d cwd`
+- The `lsof` call for `cwd` returned nothing for that PID
+- The project root walk (up to 15 directory levels) found no `package.json`, `Cargo.toml`, `go.mod`, or other project marker
+
+To verify:
+- Check that your project has a `package.json` in its root directory
+- Check that your project's relevant dependency (`next`, `vite`, `express`, etc.) is listed under `dependencies` or `devDependencies`
+
+<Note>
+Framework detection also runs against the process command line before checking `package.json`. If the command contains a recognizable keyword (e.g. `next`, `vite`, `django`), that result is used directly without needing a file lookup.
+</Note>
+
+</Accordion>
+
+<Accordion title='Docker containers not showing framework names'>
+
+Port Whisperer identifies Docker services by matching the image name against known substrings (e.g. `postgres`, `redis`, `mongo`). If you're using a custom or private image, it falls back to showing "Docker".
+
+Common causes:
+- **Docker Desktop is not running** — Port Whisperer runs `docker ps` to get container info. If Docker is not running, the call fails silently and container metadata is skipped
+- **Custom image name** — an image like `mycompany/internal-db:v2` won't match any known pattern
+- **`docker` not in PATH** — the `docker` CLI must be accessible from your shell
+
+To debug, run `docker ps` directly and compare the image names against the [supported patterns](/guides/docker#supported-docker-services).
+
+</Accordion>
+
+<Accordion title='lsof permission errors'>
+
+Port Whisperer uses `lsof` to find listening ports and resolve working directories. On some macOS configurations, `lsof` requires elevated permissions to inspect processes owned by other users.
+
+If certain ports are missing from the output:
+
+```bash
+sudo ports
+```
+
+<Note>
+This is uncommon on standard developer machines. Most dev servers run under your own user account and are visible to `lsof` without `sudo`.
+</Note>
+
+</Accordion>
+
+<Accordion title='Port Whisperer is slow'>
+
+Port Whisperer is designed to complete in approximately **0.2 seconds** using three batched shell calls. If you're seeing significantly longer runtimes, Docker is the most likely cause.
+
+- Port Whisperer calls `docker ps` with a **5-second timeout** when Docker ports are detected
+- If Docker Desktop is installed but not currently running, the call may hang until the timeout fires
+- If Docker is not installed, the call is skipped automatically after the detection check fails
+
+To work around a slow Docker call:
+- Start Docker Desktop before running `ports`, or
+- Use `ports --all` without Docker running — if no `com.docke` or `docker` process is listening on any port, the `docker ps` call is skipped entirely
+
+</Accordion>
+
+</AccordionGroup>

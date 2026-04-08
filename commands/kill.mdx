@@ -1,0 +1,127 @@
+---
+title: "ports kill"
+description: "Kill one or more processes by port number or PID, with optional force kill via SIGKILL."
+keywords: ["kill", "port", "pid", "sigterm", "sigkill", "force", "process"]
+---
+
+`ports kill` terminates processes by port number or PID. You can kill multiple targets in a single command, and use `-f` to send `SIGKILL` instead of the default `SIGTERM`.
+
+## Usage
+
+```bash
+ports kill <port|pid> [port|pid...]
+ports kill -f <port|pid> [port|pid...]
+ports kill --force <port|pid> [port|pid...]
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Kill by port
+ports kill 3000
+```
+
+```bash Kill by PID
+ports kill 42872
+```
+
+```bash Kill multiple ports at once
+ports kill 3000 5173 8080
+```
+
+```bash Force kill (SIGKILL)
+ports kill -f 3000
+```
+
+</CodeGroup>
+
+## How targets are resolved
+
+For each argument, Port Whisperer parses it as an integer and resolves it as follows:
+
+1. If the number is ≤ 65535, Port Whisperer first checks whether any process is listening on that port. If a listener is found, the associated PID is killed.
+2. If no listener is found on that port (or the number is > 65535), Port Whisperer checks whether a process with that PID exists and kills it directly.
+
+<Note>
+Numbers greater than 65535 are always treated as PIDs, since 65535 is the maximum valid port number.
+</Note>
+
+## Flags
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--force` | `-f` | Send `SIGKILL` instead of `SIGTERM` |
+
+<Warning>
+`SIGKILL` cannot be caught or ignored by the process — it is terminated immediately without any cleanup. Use `-f` only when the process does not respond to `SIGTERM`.
+</Warning>
+
+## Output
+
+For each target, Port Whisperer prints the result:
+
+```
+  Killing :3000 — node (PID 42872)
+  ✓ Sent SIGTERM to :3000 — node (PID 42872)
+
+  Killing :5173 — node (PID 19021)
+  ✓ Sent SIGTERM to :5173 — node (PID 19021)
+```
+
+When killing by PID directly:
+
+```
+  Killing PID 42872
+  ✓ Sent SIGTERM to PID 42872
+```
+
+## When a target is not found
+
+If no listener exists on the given port and no process with that PID exists:
+
+- For numbers ≤ 65535: `✕ No listener on :3000 and no process with PID 3000`
+- For numbers > 65535: `✕ No process with PID 99999`
+
+## Exit code
+
+`ports kill` exits with code `1` if any target failed — either because it was not found or because the kill was rejected. It exits with code `0` only if all targets were killed successfully.
+
+<Tip>
+You can use the exit code in shell scripts to detect failures: `ports kill 3000 || echo "Failed to kill port 3000"`.
+</Tip>
+
+## On macOS: permission errors
+
+If the kill fails due to insufficient permissions, Port Whisperer prints a suggestion:
+
+```
+  ✕ Failed. Try: sudo kill 42872
+```
+
+With `-f`:
+
+```
+  ✕ Failed. Try: sudo kill -9 42872
+```
+
+## Usage message
+
+Running `ports kill` with no arguments prints usage and exits with code `1`:
+
+```
+  Usage: ports kill [-f|--force] <port|pid> [port|pid...]
+
+  Kills listener on port (1-65535), or process by PID. Use -f for SIGKILL.
+```
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="Inspect a port" icon="magnifying-glass" href="/commands/inspect">
+    Interactive kill prompt with full process details
+  </Card>
+  <Card title="ports clean" icon="broom" href="/commands/clean">
+    Kill all orphaned and zombie dev processes at once
+  </Card>
+</CardGroup>

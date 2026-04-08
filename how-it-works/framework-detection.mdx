@@ -1,0 +1,161 @@
+---
+title: "Framework detection"
+description: "How Port Whisperer identifies the framework running on each port"
+---
+
+Port Whisperer identifies the framework for each port using up to five detection strategies, applied in priority order. Earlier strategies are more specific; later ones are broader fallbacks. Once a framework is identified, the remaining strategies are skipped.
+
+## Detection priority
+
+```
+Docker image name
+       ↓
+Process command line
+       ↓
+package.json dependencies
+       ↓
+Config files on disk
+       ↓
+Process name (fallback)
+```
+
+## Strategy 1: Docker image name
+
+When a port is owned by a Docker process, Port Whisperer reads the image name from `docker ps` output and matches it by substring:
+
+| Image substring | Detected framework |
+|-----------------|-------------------|
+| `postgres` | PostgreSQL |
+| `redis` | Redis |
+| `mysql` or `mariadb` | MySQL |
+| `mongo` | MongoDB |
+| `nginx` | nginx |
+| `localstack` | LocalStack |
+| `rabbitmq` | RabbitMQ |
+| `kafka` | Kafka |
+| `elasticsearch` or `opensearch` | Elasticsearch |
+| `minio` | MinIO |
+
+If the image doesn't match any known string, the framework is set to `"Docker"`.
+
+## Strategy 2: Process command line
+
+The full command string (e.g. `node /usr/local/bin/next start`) is matched by substring against known framework identifiers:
+
+| Command substring | Detected framework |
+|-------------------|-------------------|
+| `next` | Next.js |
+| `vite` | Vite |
+| `nuxt` | Nuxt |
+| `angular` or `ng serve` | Angular |
+| `webpack` | Webpack |
+| `remix` | Remix |
+| `astro` | Astro |
+| `gatsby` | Gatsby |
+| `flask` | Flask |
+| `django` or `manage.py` | Django |
+| `uvicorn` | FastAPI |
+| `rails` | Rails |
+| `cargo` or `rustc` | Rust |
+
+## Strategy 3: package.json dependencies
+
+If the process has a resolvable project root containing a `package.json`, Port Whisperer reads `dependencies` and `devDependencies` and checks for known package names. Packages are checked in this priority order:
+
+| Package | Detected framework |
+|---------|-------------------|
+| `next` | Next.js |
+| `nuxt` or `nuxt3` | Nuxt |
+| `@sveltejs/kit` | SvelteKit |
+| `svelte` | Svelte |
+| `@remix-run/react` or `remix` | Remix |
+| `astro` | Astro |
+| `vite` | Vite |
+| `@angular/core` | Angular |
+| `vue` | Vue |
+| `react` | React |
+| `express` | Express |
+| `fastify` | Fastify |
+| `hono` | Hono |
+| `koa` | Koa |
+| `nestjs` or `@nestjs/core` | NestJS |
+| `gatsby` | Gatsby |
+| `webpack-dev-server` | Webpack |
+| `esbuild` | esbuild |
+| `parcel` | Parcel |
+
+<Note>
+  The order matters. For example, a project that has both `next` and `react` in its dependencies will be identified as **Next.js**, not React.
+</Note>
+
+## Strategy 4: Config files on disk
+
+If `package.json` is absent or doesn't contain a matching dependency, Port Whisperer checks for well-known config files in the project root:
+
+| Config file | Detected framework |
+|-------------|-------------------|
+| `vite.config.ts` or `vite.config.js` | Vite |
+| `next.config.js` or `next.config.mjs` | Next.js |
+| `angular.json` | Angular |
+| `Cargo.toml` | Rust |
+| `go.mod` | Go |
+| `manage.py` | Django |
+| `Gemfile` | Ruby |
+
+## Strategy 5: Process name fallback
+
+If no other strategy matched, the process name (e.g. `node`, `python3`) is used as a coarse runtime identifier:
+
+| Process name | Detected framework |
+|--------------|-------------------|
+| `node` | Node.js |
+| `python` or `python3` | Python |
+| `ruby` | Ruby |
+| `java` | Java |
+| `go` | Go |
+
+If none of these match either, `framework` is `null` and no framework label is displayed.
+
+## All supported frameworks
+
+| Framework | Detection methods |
+|-----------|------------------|
+| Next.js | Command, `package.json`, config file |
+| Vite | Command, `package.json`, config file |
+| Nuxt | Command, `package.json` |
+| Angular | Command, `package.json`, config file |
+| Webpack | Command, `package.json` |
+| Remix | Command, `package.json` |
+| Astro | Command, `package.json` |
+| Gatsby | Command, `package.json` |
+| SvelteKit | `package.json` |
+| Svelte | `package.json` |
+| Vue | `package.json` |
+| React | `package.json` |
+| Express | `package.json` |
+| Fastify | `package.json` |
+| Hono | `package.json` |
+| Koa | `package.json` |
+| NestJS | `package.json` |
+| esbuild | `package.json` |
+| Parcel | `package.json` |
+| Flask | Command |
+| Django | Command, config file |
+| FastAPI | Command (via `uvicorn`) |
+| Rails | Command, config file |
+| Rust | Command, config file |
+| Go | Config file, process name |
+| Ruby | Config file, process name |
+| Node.js | Process name |
+| Python | Process name |
+| Java | Process name |
+| PostgreSQL | Docker image |
+| Redis | Docker image |
+| MySQL | Docker image |
+| MongoDB | Docker image |
+| nginx | Docker image |
+| LocalStack | Docker image |
+| RabbitMQ | Docker image |
+| Kafka | Docker image |
+| Elasticsearch | Docker image |
+| MinIO | Docker image |

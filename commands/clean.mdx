@@ -1,0 +1,94 @@
+---
+title: "ports clean"
+description: "Find and kill orphaned and zombie dev server processes in one step."
+keywords: ["clean", "orphaned", "zombie", "dev server", "kill", "reparented"]
+---
+
+`ports clean` scans all listening ports for dev processes that are in a bad state — either orphaned (reparented to PID 1) or zombie (fully exited but not yet reaped) — and offers to kill them all at once.
+
+## Usage
+
+```bash
+ports clean
+```
+
+## What orphaned processes are
+
+An orphaned process is a dev server whose original parent process has exited. When a parent exits, the OS reparents its children to PID 1 (the init process). Port Whisperer identifies a process as orphaned when:
+
+- Its parent PID is `1`
+- It matches a dev runtime (node, python, ruby, etc.)
+
+This typically happens when you close a terminal window or kill a shell session without stopping the servers running inside it.
+
+<Note>
+Orphaned processes can still serve traffic. They just have no controlling terminal and no parent to clean them up when you're done.
+</Note>
+
+## What zombie processes are
+
+A zombie process has finished executing but hasn't been removed from the process table because its parent hasn't called `wait()` to collect its exit status. Port Whisperer identifies zombies by checking whether the process's stat field contains `Z`.
+
+<Warning>
+Zombie processes cannot be killed with a signal — they are already dead. Killing a zombie requires either waiting for its parent to reap it, or killing the parent. `ports clean` attempts to send `SIGTERM` to zombie PIDs, but this may not succeed in all cases.
+</Warning>
+
+## How it works
+
+<Steps>
+  <Step title="Scan for bad processes">
+    Port Whisperer calls `getListeningPorts()` and filters for entries where `status` is `orphaned` or `zombie`.
+  </Step>
+  <Step title="Display the list">
+    If any are found, Port Whisperer prints each one with its port, process name, and PID:
+
+    ```
+      Found 2 orphaned/zombie processes:
+      • :3000 — node (PID 42872)
+      • :8080 — python3 (PID 19034)
+    ```
+  </Step>
+  <Step title="Confirm before killing">
+    Port Whisperer prompts for confirmation before taking any action:
+
+    ```
+      Kill all? [y/N]
+    ```
+
+    Type `y` and press Enter to kill all listed processes. Press Enter (or type anything other than `y`) to abort.
+  </Step>
+  <Step title="Kill and report results">
+    Port Whisperer sends `SIGTERM` to each PID and reports success or failure for each one.
+  </Step>
+</Steps>
+
+## When nothing is found
+
+If no orphaned or zombie dev processes are found, `ports clean` prints:
+
+```
+  ✓ No orphaned or zombie processes found. All clean!
+```
+
+and exits immediately without prompting.
+
+## Dev-only targeting
+
+`ports clean` only targets processes that match dev runtimes. It will never touch desktop apps, system services, or other non-dev processes — even if those processes happen to be reparented to PID 1 or in a zombie state.
+
+The same `isDevProcess` logic used by `ports` and `ports ps` applies here. Processes must match a known runtime name (`node`, `python`, `python3`, `ruby`, `java`, `go`, `bun`, `deno`, etc.) or have a command line containing dev framework indicators.
+
+<Tip>
+Run `ports` first to see the status of each port before running `ports clean`. Orphaned ports appear in yellow and zombie ports appear in red.
+</Tip>
+
+## Related commands
+
+<CardGroup cols={2}>
+  <Card title="ports" icon="list" href="/commands/ports">
+    View port status colors — yellow for orphaned, red for zombie
+  </Card>
+  <Card title="ports kill" icon="x" href="/commands/kill">
+    Kill specific ports or PIDs individually
+  </Card>
+</CardGroup>

@@ -1,0 +1,128 @@
+---
+title: "Architecture"
+description: "How Port Whisperer collects and enriches port information in ~0.2s"
+---
+
+Port Whisperer resolves every listening port to a named project with framework, uptime, and health status in approximately 0.2 seconds. It achieves this by issuing exactly three shell calls — all batched — and enriching the results entirely in memory.
+
+## Data collection pipeline
+
+<Steps>
+  <Step title="Discover listening ports">
+    `lsof -iTCP -sTCP:LISTEN -P -n` returns every process currently accepting TCP connections. Each output row yields three values: the **port number**, the **PID**, and the **process name**.
+
+    ```bash
+    lsof -iTCP -sTCP:LISTEN -P -n
+    ```
+
+    On Linux, `ss -tlnp` is used instead, with `netstat -tlnp` as a fallback if `ss` is unavailable.
+
+    Duplicate ports are deduplicated immediately — only the first entry per port is kept.
+  </Step>
+
+  <Step title="Batch-fetch process details">
+    All unique PIDs from step 1 are collected into a single list and passed to `ps` in one call:
+
+    ```bash
+    ps -p <pid1>,<pid2>,<pid3>... -o pid=,ppid=,stat=,rss=,lstart=,command=
+    ```
+
+    This returns, for every matching process in a single pass:
+
+    | Field | Description |
+    |-------|-------------|
+    | `pid` | Process ID |
+    | `ppid` | Parent process ID |
+    | `stat` | Process status flags (e.g. `S`, `Z` for zombie) |
+    | `rss` | Resident set size in kilobytes |
+    | `lstart` | Exact process start timestamp |
+    | `command` | Full command line |
+
+    <Tip>
+      Batching is the key to speed. One `ps` call for all N PIDs costs the same as a single lookup — no forking N child processes. This keeps the total runtime flat regardless of how many ports are open.
+    </Tip>
+  </Step>
+
+  <Step title="Resolve working directories">
+    A single `lsof -a -d cwd -p <pids>` call resolves the current working directory for all PIDs at once:
+
+    ```bash
+    lsof -a -d cwd -p <pid1>,<pid2>,<pid3>...
+    ```
+
+    On Linux, working directories are read directly from `/proc/<pid>/cwd` symlinks, which requires no external command.
+
+    The working directory is used to walk up the filesystem looking for a project root marker, then detect the framework from `package.json` or config files.
+  </Step>
+</Steps>
+
+For any port owned by a Docker process (`com.docker.*` or `docker`), a single additional call is made:
+
+```bash
+docker ps --format "{{.Ports}}\t{{.Names}}\t{{.Image}}"
+```
+
+This maps every exposed host port to its container name and image in one pass. The image name is then used for [framework detection](/how-it-works/framework-detection).
+
+## Data enrichment
+
+After the three shell calls complete, all enrichment happens in memory without any further subprocess invocations.
+
+### Process status
+
+The `stat` field from `ps` determines health:
+
+| Status | Condition | Display |
+|--------|-----------|---------|
+| `healthy` | Default — process is running normally | Green |
+| `zombie` | `stat` contains `Z` | Red |
+| `orphaned` | `ppid` is `1` (reparented to init) and process looks like a dev server | Yellow |
+
+The orphan check only flags recognized dev runtimes — `node`, `python`, `ruby`, `cargo`, `uvicorn`, and others. System processes and desktop apps with `ppid=1` are not flagged.
+
+### Memory formatting
+
+RSS is reported by `ps` in kilobytes and formatted for display:
+
+```
+> 1 GB  →  X.X GB
+> 1 MB  →  X.X MB
+≤ 1 MB  →  X KB
+```
+
+### Uptime calculation
+
+The `lstart` field gives an absolute start timestamp (e.g. `Wed Apr  2 09:14:33 2025`). Uptime is computed as `Date.now() - startTime` and formatted:
+
+```
+≥ 1 day   →  Xd Xh
+≥ 1 hour  →  Xh Xm
+≥ 1 min   →  Xm Xs
+< 1 min   →  Xs
+```
+
+### Project root discovery
+
+Starting from the process working directory, Port Whisperer walks up the filesystem (up to 15 levels) looking for any of these marker files:
+
+| Marker file | Language / ecosystem |
+|-------------|---------------------|
+| `package.json` | Node.js |
+| `Cargo.toml` | Rust |
+| `go.mod` | Go |
+| `pyproject.toml` | Python |
+| `Gemfile` | Ruby |
+| `pom.xml` | Java (Maven) |
+| `build.gradle` | Java (Gradle) |
+
+The first directory containing a marker is treated as the project root. Its `basename` becomes the **project name** shown in the port table.
+
+### Git branch detection
+
+Git branch is only resolved in detail view mode (`ports <number>`) to avoid the overhead on every scan:
+
+```bash
+git -C "<project-root>" rev-parse --abbrev-ref HEAD
+```
+
+This runs once per inspected port, not on every `ports` invocation.

@@ -1,0 +1,106 @@
+---
+title: "Docker guide"
+description: "How Port Whisperer works with Docker containers and how to inspect containerized services."
+---
+
+## How Docker port detection works
+
+Port Whisperer runs `docker ps --format "{{.Ports}}\t{{.Names}}\t{{.Image}}"` **once** when Docker ports are detected, mapping host ports to container names and images.
+
+Detection is triggered only when at least one listening port belongs to a process whose name starts with `com.docke` or equals `docker`. If no Docker processes are present, the `docker ps` call is skipped entirely.
+
+When a port is bound to a Docker process, Port Whisperer:
+
+1. Shows the container name in the **PROJECT** column
+2. Identifies the service from the image name (PostgreSQL, Redis, MongoDB, etc.)
+3. Replaces the raw process name with `docker` in the **PROCESS** column
+
+<Note>
+Container metadata (name and image) is looked up by matching the host port from `docker ps` output. Each host port is mapped to exactly one container — the first match wins.
+</Note>
+
+## Supported Docker services
+
+Port Whisperer identifies services by checking whether the image name contains a known substring. Matching is case-insensitive.
+
+| Image pattern | Detected as |
+|---|---|
+| `postgres` | PostgreSQL |
+| `redis` | Redis |
+| `mysql` or `mariadb` | MySQL |
+| `mongo` | MongoDB |
+| `nginx` | nginx |
+| `localstack` | LocalStack |
+| `rabbitmq` | RabbitMQ |
+| `kafka` | Kafka |
+| `elasticsearch` or `opensearch` | Elasticsearch |
+| `minio` | MinIO |
+| anything else | Docker |
+
+<Tip>
+If you use a custom or private image (e.g., `myorg/mydb:latest`), Port Whisperer falls back to showing "Docker" as the framework since no known pattern matches.
+</Tip>
+
+## Example output
+
+The output below shows a typical local development setup with a Next.js frontend and three Docker-managed services — LocalStack, PostgreSQL, and Redis:
+
+```
+$ ports
+
+ ┌─────────────────────────────────────┐
+ │  Port Whisperer                     │
+ │  listening to your ports...         │
+ └─────────────────────────────────────┘
+
+┌───────┬─────────┬───────┬──────────────────────┬────────────┬────────┬───────────┐
+│ PORT  │ PROCESS │ PID   │ PROJECT              │ FRAMEWORK  │ UPTIME │ STATUS    │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :3000 │ node    │ 42872 │ frontend             │ Next.js    │ 1d 9h  │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :4566 │ docker  │ 58351 │ backend-localstack-1 │ LocalStack │ 10d 3h │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :5432 │ docker  │ 58351 │ backend-postgres-1   │ PostgreSQL │ 10d 3h │ ● healthy │
+├───────┼─────────┼───────┼──────────────────────┼────────────┼────────┼───────────┤
+│ :6379 │ docker  │ 58351 │ backend-redis-1      │ Redis      │ 10d 3h │ ● healthy │
+└───────┴─────────┴───────┴──────────────────────┴────────────┴────────┴───────────┘
+
+  4 ports active  ·  Run ports <number> for details  ·  --all to show everything
+```
+
+Each Docker container appears as a separate row — one per exposed host port — with its container name in PROJECT and its detected service in FRAMEWORK.
+
+## Docker process collapsing (`ports ps`)
+
+When running `ports ps`, all Docker-related processes (`com.docke*`, `Docker*`, `docker`, `docker-sandbox`) are **collapsed into a single summary row** showing the total process count and combined memory usage:
+
+```
+$ ports ps
+
+┌───────┬─────────┬──────┬──────────┬──────────┬───────────┬─────────┬──────────────┐
+│ PID   │ PROCESS │ CPU% │ MEM      │ PROJECT  │ FRAMEWORK │ UPTIME  │ WHAT         │
+├───────┼─────────┼──────┼──────────┼──────────┼───────────┼─────────┼──────────────┤
+│ 592   │ Docker  │ 1.3  │ 735.5 MB │ —        │ Docker    │ 13d 12h │ 14 processes │
+└───────┴─────────┴──────┴──────────┴──────────┴───────────┴─────────┴──────────────┘
+```
+
+The summary row shows:
+- **PID**: the PID of the first Docker process found
+- **MEM**: combined RSS memory across all Docker processes
+- **CPU%**: combined CPU usage across all Docker processes
+- **WHAT**: `N processes` where N is the total count
+
+To see each Docker process individually, use the `--all` flag:
+
+```bash
+ports ps --all
+```
+
+## Requirements
+
+- Docker must be running and the `docker` CLI must be in your `PATH`
+- If Docker is not running or the `docker` command times out (5-second timeout), the `docker ps` call fails silently — the port still appears in the output, but without container name or service metadata
+
+<Warning>
+Port Whisperer does not start Docker for you. If Docker Desktop is not running, Docker ports may still appear (the process is bound) but the PROJECT and FRAMEWORK columns will be empty.
+</Warning>
